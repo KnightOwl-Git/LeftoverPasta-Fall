@@ -2,7 +2,7 @@
  * Copyright 2024 Rive
  */
 
-#include "../pch.h"
+#include "pasta_context.hpp"
 
 #if !defined(RIVE_VULKAN) || defined(RIVE_TOOLS_NO_GLFW)
 

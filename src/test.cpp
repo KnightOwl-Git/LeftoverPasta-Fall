@@ -1,4 +1,3 @@
-int hello() {
-  return 5;
+int te() {
+  return 6;
 }
-

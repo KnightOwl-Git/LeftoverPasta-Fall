@@ -1,9 +1,22 @@
-#include "pch.h"
+#include "pasta_context.hpp"
 #ifdef _WIN32
 #include <windows.h>
 #endif
 
 
+#include "rive/animation/state_machine_instance.hpp"
+#include "rive/artboard.hpp"
+#include "rive/file.hpp"
+#include "rive/layout.hpp"
+#include "rive/math/simd.hpp"
+#include "rive/profiler/profiler_macros.h"
+#include "rive/static_scene.hpp"
+
+#include <filesystem>
+#include <fstream>
+#include <iterator>
+#include <sstream>
+#include <vector>
 
 
 #define GLFW_INCLUDE_NONE
@@ -332,7 +345,7 @@ std::string rivName;
 
 void riveMainLoop();
 
-int main(int argc, const char **argv) {
+extern "C" int pasta_run(int argc, const char **argv) {
   // Cause stdout and stderr to print immediately without buffering.
 
   rivName = "riv/lp_level_editor.riv"; // load level editor .riv
@@ -621,3 +634,6 @@ void riveMainLoop() {
     }
   }
 }
+// test change
+// test change
+// ping
