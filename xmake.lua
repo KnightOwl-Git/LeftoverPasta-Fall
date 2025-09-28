@@ -13,7 +13,9 @@ do
 	add_files("./src/rive-render/*.cpp")
 	add_files("./src/rive-render/*.mm")
 
-	set_pcxxheader("./src/pch.h")
+	set_configdir("$(builddir)/$(plat)/$(arch)/$(mode)/riv")
+	add_configfiles("./src/riv/lp_level_editor.riv")
+
 	--Add rive libraries
 	add_linkdirs("./deps/rive-runtime/renderer/out/release/")
 	add_links(

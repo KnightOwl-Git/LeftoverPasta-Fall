@@ -1,10 +1,23 @@
-#include "pch.h"
+
+
+#include "pasta_context.hpp"
+#include "rive/animation/state_machine_instance.hpp"
+#include "rive/artboard.hpp"
+#include "rive/file.hpp"
+#include "rive/layout.hpp"
+#include "rive/math/simd.hpp"
+#include "rive/profiler/profiler_macros.h"
+#include "rive/static_scene.hpp"
+
+#include <filesystem>
+#include <fstream>
+#include <iterator>
+#include <sstream>
+#include <vector>
+
 #ifdef _WIN32
 #include <windows.h>
 #endif
-
-
-
 
 #define GLFW_INCLUDE_NONE
 #include "GLFW/glfw3.h"
