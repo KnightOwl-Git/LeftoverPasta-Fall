@@ -13,6 +13,8 @@ do
 	add_files("./src/rive-render/*.cpp")
 	add_files("./src/rive-render/*.mm")
 
+	-- add rive files to build- is there a better way to do this?
+
 	set_configdir("$(builddir)/$(plat)/$(arch)/$(mode)/riv")
 	add_configfiles("./src/riv/lp_level_editor.riv")
 

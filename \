@@ -85,7 +85,7 @@ static int upRepeat = 0;
 static int downRepeat = 0;
 
 
-void framebuffer_size_callback(GLFWwindow *window, int width, int height);
+GLFWframebuffersizefun framebuffer_size_callback();
 rcp<File> rivFile;
 std::vector<std::unique_ptr<Artboard>> artboards;
 std::vector<std::unique_ptr<Scene>> scenes;
@@ -404,10 +404,7 @@ int main(int argc, const char **argv) {
   glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
   while (!glfwWindowShouldClose(window)) {
-    int width, height;
-
-    glfwGetFramebufferSize(window, &width, &height);
-    riveMainLoop(width, height);
+    riveMainLoop(50, 100);
     if (!rivName.empty()) {
       glfwPollEvents();
     } else {
