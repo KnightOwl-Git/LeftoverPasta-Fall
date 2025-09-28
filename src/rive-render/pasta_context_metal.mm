@@ -58,7 +58,7 @@ public:
     m_swapchain.framebufferOnly = !m_fiddleOptions.enableReadPixels;
     m_swapchain.pixelFormat = MTLPixelFormatBGRA8Unorm;
     m_swapchain.contentsScale = dpiScale(window);
-    m_swapchain.displaySyncEnabled = NO;
+    m_swapchain.displaySyncEnabled = NO; // vsync
     view.layer = m_swapchain;
     m_swapchain.drawableSize = CGSizeMake(width, height);
 

@@ -12,6 +12,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iterator>
+#include <memory>
 #include <sstream>
 #include <vector>
 
@@ -79,17 +80,17 @@ static int dragIdx = -1;
 static float2 dragLastPos;
 
 static int animation = -1;
-static int stateMachine = -1;
+static int stateMachine = 0;
 static int horzRepeat = 0;
 static int upRepeat = 0;
 static int downRepeat = 0;
-
 
 void framebuffer_size_callback(GLFWwindow *window, int width, int height);
 rcp<File> rivFile;
 std::vector<std::unique_ptr<Artboard>> artboards;
 std::vector<std::unique_ptr<Scene>> scenes;
 std::vector<rive::rcp<rive::ViewModelInstance>> viewModelInstances;
+static std::unique_ptr<rive::StateMachineInstance> stateMachineInstance;
 
 static void clear_scenes() {
   artboards.clear();
@@ -99,13 +100,28 @@ static void clear_scenes() {
 
 static void make_scenes(size_t count) {
   clear_scenes();
+  stateMachineInstance.reset();
+
   for (size_t i = 0; i < count; ++i) {
+
     // Tip: you can change the artboard shown here
     // auto artboard = rivFile->artboardAt(2);
     auto artboard = rivFile->artboardDefault();
+    printf("Artboard has %zu state machines\n", artboard->stateMachineCount());
+    printf("Artboard has %zu animations\n", artboard->animationCount());
+    printf("Current stateMachine index: %d\n", stateMachine);
+    printf("Current animation index: %d\n", animation);
     std::unique_ptr<Scene> scene;
     if (stateMachine >= 0) {
+
+      printf("Trying to load state machine at index %d\n", stateMachine);
       scene = artboard->stateMachineAt(stateMachine);
+      if (i == 0) {
+        stateMachineInstance = artboard->stateMachineAt(stateMachine);
+        printf("State machine instance created: %s\n",
+               stateMachineInstance ? "YES" : "NO");
+      }
+
     } else if (animation >= 0) {
       scene = artboard->animationAt(animation);
     } else {
@@ -145,6 +161,27 @@ EM_JS(char *, get_location_hash_str, (), {
 #endif
 void window_refresh_callback(GLFWwindow *window);
 
+static rive::Vec2D transformMouseToRiveCoords(double x, double y, int width,
+                                              int height) {
+  // Apply DPI scaling
+  // float dpiScale = fiddleContext->dpiScale(window);
+  // x *= dpiScale;
+  // y *= dpiScale;
+
+  // Create the same transformation matrix used for rendering
+  Mat2D forward = computeAlignment(rive::Fit::contain, rive::Alignment::center,
+                                   rive::AABB(0, 0, width, height),
+                                   artboards.front()->bounds());
+  forward = Mat2D(scale, 0, 0, scale, translate.x, translate.y) * forward;
+
+  // Get the inverse transformation matrix
+  Mat2D inverse = forward.invertOrIdentity();
+
+  // Transform the mouse coordinates
+  rive::Vec2D mousePos(static_cast<float>(x), static_cast<float>(y));
+  return inverse * mousePos;
+}
+
 static void mouse_button_callback(GLFWwindow *window, int button, int action,
                                   int mods) {
   double x, y;
@@ -152,6 +189,20 @@ static void mouse_button_callback(GLFWwindow *window, int button, int action,
   float dpiScale = fiddleContext->dpiScale(window);
   x *= dpiScale;
   y *= dpiScale;
+
+  int width, height;
+  glfwGetFramebufferSize(window, &width, &height);
+  // pass mouse coordinates to rive for state machine listener, etc.
+  rive::Vec2D position = transformMouseToRiveCoords(x, y, width, height);
+
+  if (stateMachineInstance && button == GLFW_MOUSE_BUTTON_LEFT) {
+    if (action == GLFW_PRESS) {
+      stateMachineInstance->pointerDown(position);
+    } else if (action == GLFW_RELEASE) {
+      stateMachineInstance->pointerUp(position);
+    }
+  }
+
   dragLastPos = float2{(float)x, (float)y};
   if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
     dragIdx = -1;
@@ -170,14 +221,25 @@ static void mousemove_callback(GLFWwindow *window, double x, double y) {
   float dpiScale = fiddleContext->dpiScale(window);
   x *= dpiScale;
   y *= dpiScale;
-  if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
-    float2 pos = float2{(float)x, (float)y};
-    if (dragIdx >= 0) {
-      pts[dragIdx] += (pos - dragLastPos);
-    } else {
-      translate += (pos - dragLastPos);
-    }
-    dragLastPos = pos;
+  // if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
+  //   float2 pos = float2{(float)x, (float)y};
+  //   if (dragIdx >= 0) {
+  //     pts[dragIdx] += (pos - dragLastPos);
+  //   } else {
+  //     translate += (pos - dragLastPos);
+  //   }
+  //   dragLastPos = pos;
+  // }
+  int width, height;
+  glfwGetFramebufferSize(window, &width, &height);
+  // pass mouse coordinates to rive for state machine listener, etc.
+  rive::Vec2D position = transformMouseToRiveCoords(x, y, width, height);
+
+  if (stateMachineInstance) {
+    stateMachineInstance->pointerMove(position);
+    printf("should work hmmm");
+  } else {
+    printf("no stateMachineInstance");
   }
 }
 
@@ -404,15 +466,15 @@ int main(int argc, const char **argv) {
   glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
   while (!glfwWindowShouldClose(window)) {
-    int width, height;
-
-    glfwGetFramebufferSize(window, &width, &height);
-    riveMainLoop(width, height);
     if (!rivName.empty()) {
       glfwPollEvents();
     } else {
       glfwWaitEvents();
     }
+    int width, height;
+
+    glfwGetFramebufferSize(window, &width, &height);
+    riveMainLoop(width, height);
   }
 
   // We need to clear the riv scene (which can be holding on to render
@@ -521,13 +583,14 @@ void riveMainLoop(int width, int height) {
     if (artboards.size() != instances || scenes.size() != instances) {
       make_scenes(instances);
     } else if (!paused) {
-      float dT = 1 / 120.f;
 
-      if (!unlockedLogic) {
-        double time = glfwGetTime();
-        dT = time - fpsLastTimeLogic;
-        fpsLastTimeLogic = time;
-      }
+      double time = glfwGetTime();
+      float dT = static_cast<float>(time - fpsLastTimeLogic);
+      fpsLastTimeLogic = time;
+
+      // Clamp delta time to prevent large jumps (e.g., when window regains
+      // focus)
+      dT = std::min(dT, 1.0f / 30.0f); // Cap at 30 FPS minimum
 
       for (const auto &scene : scenes) {
         scene->advanceAndApply(dT);
@@ -626,7 +689,7 @@ void riveMainLoop(int width, int height) {
     ++fpsFrames;
     double time = glfwGetTime();
     double fpsElapsed = time - fpsLastTime;
-    if (fpsElapsed > 2) {
+    if (fpsElapsed > 1) {
       int instances = (1 + horzRepeat * 2) * (1 + upRepeat + downRepeat);
       double fps = fpsLastTime == 0 ? 0 : fpsFrames / fpsElapsed;
       update_window_title(fps, instances, width, height);
