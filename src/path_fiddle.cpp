@@ -9,6 +9,7 @@
 #include "rive/profiler/profiler_macros.h"
 #include "rive/static_scene.hpp"
 
+#include <cstdio>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
@@ -54,6 +55,9 @@ static bool disableStroke = false;
 static bool clockwiseFill = false;
 static bool hotloadShaders = false;
 
+float userUIScale;
+float FinalDPIScale;
+
 static std::unique_ptr<FiddleContext> fiddleContext;
 
 static float2 pts[] = {
@@ -90,9 +94,15 @@ rcp<File> rivFile;
 std::vector<std::unique_ptr<Artboard>> artboards;
 std::vector<std::unique_ptr<Scene>> scenes;
 std::vector<rive::rcp<rive::ViewModelInstance>> viewModelInstances;
-static std::unique_ptr<rive::StateMachineInstance> stateMachineInstance;
+// static std::unique_ptr<rive::StateMachineInstance> stateMachineInstance;
 
 static void clear_scenes() {
+  for (auto &artboard : artboards) {
+    if (artboard) {
+      artboard->unbind();
+    }
+  }
+
   artboards.clear();
   scenes.clear();
   viewModelInstances.clear();
@@ -100,13 +110,18 @@ static void clear_scenes() {
 
 static void make_scenes(size_t count) {
   clear_scenes();
-  stateMachineInstance.reset();
+  // stateMachineInstance.reset();
 
   for (size_t i = 0; i < count; ++i) {
 
     // Tip: you can change the artboard shown here
     // auto artboard = rivFile->artboardAt(2);
     auto artboard = rivFile->artboardDefault();
+
+    userUIScale = 1; // default UI scale
+
+    // Set artboard dimensions to match the current window size if provided
+
     printf("Artboard has %zu state machines\n", artboard->stateMachineCount());
     printf("Artboard has %zu animations\n", artboard->animationCount());
     printf("Current stateMachine index: %d\n", stateMachine);
@@ -116,11 +131,12 @@ static void make_scenes(size_t count) {
 
       printf("Trying to load state machine at index %d\n", stateMachine);
       scene = artboard->stateMachineAt(stateMachine);
-      if (i == 0) {
-        stateMachineInstance = artboard->stateMachineAt(stateMachine);
-        printf("State machine instance created: %s\n",
-               stateMachineInstance ? "YES" : "NO");
-      }
+      // if (i == 0) {
+      //   stateMachineInstance = artboard->stateMachineAt(stateMachine);
+      //   printf("State machine instance created: %s\n",
+      //          stateMachineInstance ? stateMachineInstance->name().c_str()
+      //                               : "none");
+      // }
 
     } else if (animation >= 0) {
       scene = artboard->animationAt(animation);
@@ -145,6 +161,7 @@ static void make_scenes(size_t count) {
     scene->advanceAndApply(scene->durationSeconds() * i / count);
     artboards.push_back(std::move(artboard));
     scenes.push_back(std::move(scene));
+    printf("Finished making scenes");
   }
 }
 
@@ -169,9 +186,9 @@ static rive::Vec2D transformMouseToRiveCoords(double x, double y, int width,
   // y *= dpiScale;
 
   // Create the same transformation matrix used for rendering
-  Mat2D forward = computeAlignment(rive::Fit::contain, rive::Alignment::center,
+  Mat2D forward = computeAlignment(rive::Fit::layout, rive::Alignment::center,
                                    rive::AABB(0, 0, width, height),
-                                   artboards.front()->bounds());
+                                   artboards.front()->bounds(), FinalDPIScale);
   forward = Mat2D(scale, 0, 0, scale, translate.x, translate.y) * forward;
 
   // Get the inverse transformation matrix
@@ -186,20 +203,20 @@ static void mouse_button_callback(GLFWwindow *window, int button, int action,
                                   int mods) {
   double x, y;
   glfwGetCursorPos(window, &x, &y);
-  float dpiScale = fiddleContext->dpiScale(window);
-  x *= dpiScale;
-  y *= dpiScale;
+
+  x *= FinalDPIScale;
+  y *= FinalDPIScale;
 
   int width, height;
   glfwGetFramebufferSize(window, &width, &height);
   // pass mouse coordinates to rive for state machine listener, etc.
   rive::Vec2D position = transformMouseToRiveCoords(x, y, width, height);
 
-  if (stateMachineInstance && button == GLFW_MOUSE_BUTTON_LEFT) {
+  if (scenes[0] && button == GLFW_MOUSE_BUTTON_LEFT) {
     if (action == GLFW_PRESS) {
-      stateMachineInstance->pointerDown(position);
+      // scenes[0]->pointerDown(position);
     } else if (action == GLFW_RELEASE) {
-      stateMachineInstance->pointerUp(position);
+      // scenes[0]->pointerUp(position);
     }
   }
 
@@ -218,9 +235,8 @@ static void mouse_button_callback(GLFWwindow *window, int button, int action,
 }
 
 static void mousemove_callback(GLFWwindow *window, double x, double y) {
-  float dpiScale = fiddleContext->dpiScale(window);
-  x *= dpiScale;
-  y *= dpiScale;
+  x *= FinalDPIScale;
+  y *= FinalDPIScale;
   // if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
   //   float2 pos = float2{(float)x, (float)y};
   //   if (dragIdx >= 0) {
@@ -235,11 +251,10 @@ static void mousemove_callback(GLFWwindow *window, double x, double y) {
   // pass mouse coordinates to rive for state machine listener, etc.
   rive::Vec2D position = transformMouseToRiveCoords(x, y, width, height);
 
-  if (stateMachineInstance) {
-    stateMachineInstance->pointerMove(position);
-    printf("should work hmmm");
+  if (scenes.size() > 0) {
+    // scenes[0]->pointerMove(position);
   } else {
-    printf("no stateMachineInstance");
+    printf("no scene");
   }
 }
 
@@ -258,7 +273,7 @@ API api =
 #if defined(__APPLE__)
     API::metal
 #else
-    API::vulka
+    API::vulkan
 #endif
     ;
 
@@ -407,13 +422,17 @@ void riveMainLoop(int width, int height);
 int main(int argc, const char **argv) {
   // Cause stdout and stderr to print immediately without buffering.
 
-  rivName = "riv/lp_level_editor.riv"; // load level editor .riv
+  rivName =
+      "/Users/benknight/Documents/LeftoverPasta_Fall2025/LeftoverPasta-Fall/"
+      "src/riv/lp_level_editor.riv"; // load level editor .riv
   setvbuf(stdout, NULL, _IONBF, 0);
   setvbuf(stderr, NULL, _IONBF, 0);
 
 #ifdef DEBUG
   options.enableVulkanValidationLayers = true;
 #endif
+
+  printf("set riv name\n");
 
   glfwSetErrorCallback(glfw_error_callback);
 
@@ -453,7 +472,9 @@ int main(int argc, const char **argv) {
 
   switch (api) {
   case API::metal:
+    printf("Creating Metal context...\n");
     fiddleContext = FiddleContext::MakeMetalPLS(options);
+    printf("Metal context created successfully\n");
     break;
   case API::vulkan:
     fiddleContext = FiddleContext::MakeVulkanPLS(options);
@@ -474,6 +495,7 @@ int main(int argc, const char **argv) {
     int width, height;
 
     glfwGetFramebufferSize(window, &width, &height);
+    printf("calling rive main loop\n");
     riveMainLoop(width, height);
   }
 
@@ -481,6 +503,8 @@ int main(int argc, const char **argv) {
   // resources) before releasing the fiddle context
   clear_scenes();
   rivFile = nullptr;
+
+  renderer.reset();
 
   fiddleContext = nullptr;
   glfwTerminate();
@@ -512,22 +536,35 @@ static void update_window_title(double fps, int instances, int width,
 }
 
 void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
-  riveMainLoop(width, height);
+  // riveMainLoop(width, height);
 }
 
 void riveMainLoop(int width, int height) {
   fiddleContext->tick();
+
+  // hmm
   RIVE_PROF_FRAME()
   RIVE_PROF_SCOPE()
 
   if (lastWidth != width || lastHeight != height) {
     printf("size changed to %ix%i\n", width, height);
+
+    clear_scenes();
+
+    renderer.reset();
+
     lastWidth = width;
     lastHeight = height;
     fiddleContext->onSizeChanged(window, width, height, msaa);
+
     renderer = fiddleContext->makeRenderer(width, height);
+    printf("created renderer");
+
     needsTitleUpdate = true;
   }
+  FinalDPIScale = fiddleContext->dpiScale(window) *
+                  userUIScale; // multiply DPI scale from monitor by the UI
+                               // scale that the user sets :00
   if (needsTitleUpdate) {
     update_window_title(0, 1, width, height);
     needsTitleUpdate = false;
@@ -537,7 +574,13 @@ void riveMainLoop(int width, int height) {
     std::ifstream rivStream(rivName, std::ios::binary);
     std::vector<uint8_t> rivBytes(std::istreambuf_iterator<char>(rivStream),
                                   {});
+    printf("loading riv file\n");
     rivFile = File::import(rivBytes, fiddleContext->factory());
+    if (rivFile) {
+      printf("we loaded it\n");
+    } else {
+      printf("failed to load\n");
+    }
   }
 
   // Call right before begin()
@@ -581,6 +624,7 @@ void riveMainLoop(int width, int height) {
   if (rivFile) {
     instances = (1 + horzRepeat * 2) * (1 + upRepeat + downRepeat);
     if (artboards.size() != instances || scenes.size() != instances) {
+      clear_scenes();
       make_scenes(instances);
     } else if (!paused) {
 
@@ -596,9 +640,15 @@ void riveMainLoop(int width, int height) {
         scene->advanceAndApply(dT);
       }
     }
-    Mat2D m = computeAlignment(rive::Fit::contain, rive::Alignment::center,
+    Mat2D m = computeAlignment(rive::Fit::layout, rive::Alignment::center,
                                rive::AABB(0, 0, width, height),
-                               artboards.front()->bounds());
+                               artboards.front()->bounds(), FinalDPIScale);
+    if (width > 0 && height > 0) {
+      artboards.front()->width(static_cast<float>(width) / FinalDPIScale);
+      artboards.front()->height(static_cast<float>(height) / FinalDPIScale);
+    }
+    printf("got to line 633\n");
+
     renderer->save();
     m = Mat2D(scale, 0, 0, scale, translate.x, translate.y) * m;
     renderer->transform(m);
