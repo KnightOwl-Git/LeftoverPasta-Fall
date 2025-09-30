@@ -105,18 +105,14 @@ static void clear_scenes() {
 }
 
 static void make_scenes(size_t count) {
-  printf("DEBUG: make_scenes called with count = %zu\n", count);
   clear_scenes();
-  printf("DEBUG: clear_scenes completed\n");
   // stateMachineInstance.reset();
 
   for (size_t i = 0; i < count; ++i) {
     printf("DEBUG: Creating scene %zu\n", i);
 
-    // Tip: you can change the artboard shown here
     // auto artboard = rivFile->artboardAt(2);
     auto artboard = rivFile->artboardDefault();
-    printf("DEBUG: Got artboard for scene %zu\n", i);
 
     userUIScale = 1; // default UI scale
 
@@ -154,10 +150,10 @@ static void make_scenes(size_t count) {
         viewModelId == -1 ? rivFile->createViewModelInstance(artboard.get())
                           : rivFile->createViewModelInstance(viewModelId, 0));
     artboard->bindViewModelInstance(viewModelInstances.back());
-    // Don't bind to scene - let the artboard handle the ViewModelInstance
-    // if (viewModelInstances.back() != nullptr) {
-    //   scene->bindViewModelInstance(viewModelInstances.back());
-    // }
+
+    if (viewModelInstances.back() != nullptr) {
+      scene->bindViewModelInstance(viewModelInstances.back());
+    }
 
     scene->advanceAndApply(scene->durationSeconds() * i / count);
     artboards.push_back(std::move(artboard));
