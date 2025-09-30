@@ -31,20 +31,9 @@ public:
     printf("==== MTLDevice: %s ====\n", m_gpu.name.UTF8String);
   }
 
-  ~FiddleContextMetalPLS() {
-    // Clean up Metal resources in reverse order of creation
-    m_currentFrameSurface = nil;
-    m_pixelReadBuff = nil;
-    m_renderTarget.reset();
-    m_renderContext.reset();
-    m_swapchain = nil;
-    m_queue = nil;
-    m_gpu = nil;
-  }
-
   float dpiScale(GLFWwindow *window) const override {
     NSWindow *nsWindow = glfwGetCocoaWindow(window);
-    return nsWindow.backingScaleFactor;
+    return m_fiddleOptions.retinaDisplay ? nsWindow.backingScaleFactor : 1;
   }
 
   Factory *factory() override { return m_renderContext.get(); }
@@ -63,18 +52,24 @@ public:
     NSView *view = [nsWindow contentView];
     view.wantsLayer = YES;
 
-    m_currentFrameSurface = nil;
-    m_pixelReadBuff = nil;
-    m_renderTarget.reset();
+    // Only clean up if we're actually changing size/resolution
+    // This prevents unnecessary cleanup during rapid DPI changes
+    if (m_swapchain != nil) {
+      // Clean up the current frame surface first
+      m_currentFrameSurface = nil;
+      // Clean up the old render target
+      m_renderTarget = nullptr;
+      // Clean up pixel read buffer
+      m_pixelReadBuff = nil;
+    }
 
-    // Create new swapchain
     m_swapchain = [CAMetalLayer layer];
     m_swapchain.device = m_gpu;
     m_swapchain.opaque = YES;
     m_swapchain.framebufferOnly = !m_fiddleOptions.enableReadPixels;
     m_swapchain.pixelFormat = MTLPixelFormatBGRA8Unorm;
     m_swapchain.contentsScale = dpiScale(window);
-    m_swapchain.displaySyncEnabled = YES; // vsync
+    m_swapchain.displaySyncEnabled = NO;
     view.layer = m_swapchain;
     m_swapchain.drawableSize = CGSizeMake(width, height);
 
@@ -82,7 +77,7 @@ public:
         m_renderContext->static_impl_cast<RenderContextMetalImpl>();
     m_renderTarget = renderContextImpl->makeRenderTarget(
         MTLPixelFormatBGRA8Unorm, width, height);
-    // m_pixelReadBuff = nil;
+    m_pixelReadBuff = nil;
   }
 
   void toggleZoomWindow() override {}

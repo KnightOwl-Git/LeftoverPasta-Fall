@@ -7,11 +7,11 @@ target("LeftoverPasta")
 do
 	set_kind("binary")
 	set_filename("Leftover Pasta")
-	add_files("./src/test.cpp")
 	add_files("./src/path_fiddle.cpp")
 
 	add_files("./src/rive-render/*.cpp")
 	add_files("./src/rive-render/*.mm")
+	add_rules("xcode.application")
 
 	-- add rive files to build- is there a better way to do this?
 

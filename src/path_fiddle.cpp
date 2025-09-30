@@ -97,26 +97,26 @@ std::vector<rive::rcp<rive::ViewModelInstance>> viewModelInstances;
 // static std::unique_ptr<rive::StateMachineInstance> stateMachineInstance;
 
 static void clear_scenes() {
-  for (auto &artboard : artboards) {
-    if (artboard) {
-      artboard->unbind();
-    }
-  }
-
+  // Unbind all artboards to properly clean up ViewModelInstance references
+  
   artboards.clear();
   scenes.clear();
   viewModelInstances.clear();
 }
 
 static void make_scenes(size_t count) {
+  printf("DEBUG: make_scenes called with count = %zu\n", count);
   clear_scenes();
+  printf("DEBUG: clear_scenes completed\n");
   // stateMachineInstance.reset();
 
   for (size_t i = 0; i < count; ++i) {
+    printf("DEBUG: Creating scene %zu\n", i);
 
     // Tip: you can change the artboard shown here
     // auto artboard = rivFile->artboardAt(2);
     auto artboard = rivFile->artboardDefault();
+    printf("DEBUG: Got artboard for scene %zu\n", i);
 
     userUIScale = 1; // default UI scale
 
@@ -154,9 +154,10 @@ static void make_scenes(size_t count) {
         viewModelId == -1 ? rivFile->createViewModelInstance(artboard.get())
                           : rivFile->createViewModelInstance(viewModelId, 0));
     artboard->bindViewModelInstance(viewModelInstances.back());
-    if (viewModelInstances.back() != nullptr) {
-      scene->bindViewModelInstance(viewModelInstances.back());
-    }
+    // Don't bind to scene - let the artboard handle the ViewModelInstance
+    // if (viewModelInstances.back() != nullptr) {
+    //   scene->bindViewModelInstance(viewModelInstances.back());
+    // }
 
     scene->advanceAndApply(scene->durationSeconds() * i / count);
     artboards.push_back(std::move(artboard));
@@ -214,9 +215,9 @@ static void mouse_button_callback(GLFWwindow *window, int button, int action,
 
   if (scenes[0] && button == GLFW_MOUSE_BUTTON_LEFT) {
     if (action == GLFW_PRESS) {
-      // scenes[0]->pointerDown(position);
+      scenes[0]->pointerDown(position);
     } else if (action == GLFW_RELEASE) {
-      // scenes[0]->pointerUp(position);
+      scenes[0]->pointerUp(position);
     }
   }
 
@@ -252,7 +253,7 @@ static void mousemove_callback(GLFWwindow *window, double x, double y) {
   rive::Vec2D position = transformMouseToRiveCoords(x, y, width, height);
 
   if (scenes.size() > 0) {
-    // scenes[0]->pointerMove(position);
+    scenes[0]->pointerMove(position);
   } else {
     printf("no scene");
   }
@@ -263,6 +264,10 @@ double fpsLastTime = 0;
 double fpsLastTimeLogic = 0;
 int fpsFrames = 0;
 static bool needsTitleUpdate = false;
+
+// Throttle DPI changes to prevent memory accumulation
+double lastDPIChangeTime = 0;
+const double DPI_CHANGE_THROTTLE_INTERVAL = 0.1; // 100ms minimum between DPI changes
 
 enum class API {
   metal,
@@ -539,6 +544,7 @@ void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
   // riveMainLoop(width, height);
 }
 
+
 void riveMainLoop(int width, int height) {
   fiddleContext->tick();
 
@@ -548,18 +554,10 @@ void riveMainLoop(int width, int height) {
 
   if (lastWidth != width || lastHeight != height) {
     printf("size changed to %ix%i\n", width, height);
-
-    clear_scenes();
-
-    renderer.reset();
-
     lastWidth = width;
     lastHeight = height;
     fiddleContext->onSizeChanged(window, width, height, msaa);
-
     renderer = fiddleContext->makeRenderer(width, height);
-    printf("created renderer");
-
     needsTitleUpdate = true;
   }
   FinalDPIScale = fiddleContext->dpiScale(window) *
@@ -623,49 +621,57 @@ void riveMainLoop(int width, int height) {
   int instances = 1;
   if (rivFile) {
     instances = (1 + horzRepeat * 2) * (1 + upRepeat + downRepeat);
+    printf("DEBUG: instances = %d, artboards.size() = %zu, scenes.size() = %zu\n", 
+           instances, artboards.size(), scenes.size());
+    
+    // Always ensure we have the right number of scenes
     if (artboards.size() != instances || scenes.size() != instances) {
-      clear_scenes();
+      printf("DEBUG: About to call make_scenes(%d)\n", instances);
       make_scenes(instances);
-    } else if (!paused) {
-
+      printf("DEBUG: make_scenes completed\n");
+    }
+    
+    if (!paused && !scenes.empty()) {
       double time = glfwGetTime();
       float dT = static_cast<float>(time - fpsLastTimeLogic);
       fpsLastTimeLogic = time;
 
-      // Clamp delta time to prevent large jumps (e.g., when window regains
-      // focus)
+      // Clamp delta time to prevent large jumps (e.g., when window regains focus)
       dT = std::min(dT, 1.0f / 30.0f); // Cap at 30 FPS minimum
 
       for (const auto &scene : scenes) {
         scene->advanceAndApply(dT);
       }
     }
-    Mat2D m = computeAlignment(rive::Fit::layout, rive::Alignment::center,
-                               rive::AABB(0, 0, width, height),
-                               artboards.front()->bounds(), FinalDPIScale);
-    if (width > 0 && height > 0) {
-      artboards.front()->width(static_cast<float>(width) / FinalDPIScale);
-      artboards.front()->height(static_cast<float>(height) / FinalDPIScale);
-    }
-    printf("got to line 633\n");
+    
+    // Add safety checks before accessing vectors
+    if (!artboards.empty() && !scenes.empty()) {
+      Mat2D m = computeAlignment(rive::Fit::layout, rive::Alignment::center,
+                                 rive::AABB(0, 0, width, height),
+                                 artboards.front()->bounds(), FinalDPIScale);
+      if (width > 0 && height > 0) {
+        artboards.front()->width(static_cast<float>(width) / FinalDPIScale);
+        artboards.front()->height(static_cast<float>(height) / FinalDPIScale);
+      }
+      printf("got to line 633\n");
 
-    renderer->save();
-    m = Mat2D(scale, 0, 0, scale, translate.x, translate.y) * m;
-    renderer->transform(m);
-    float spacing = 200 / m.findMaxScale();
-    auto scene = scenes.begin();
-    for (int j = 0; j < upRepeat + 1 + downRepeat; ++j) {
       renderer->save();
-      renderer->transform(Mat2D::fromTranslate(-spacing * horzRepeat,
-                                               (j - upRepeat) * spacing));
-      for (int i = 0; i < horzRepeat * 2 + 1; ++i) {
-
-        (*scene++)->draw(renderer.get());
-        renderer->transform(Mat2D::fromTranslate(spacing, 0));
+      m = Mat2D(scale, 0, 0, scale, translate.x, translate.y) * m;
+      renderer->transform(m);
+      float spacing = 200 / m.findMaxScale();
+      auto scene = scenes.begin();
+      for (int j = 0; j < upRepeat + 1 + downRepeat; ++j) {
+        renderer->save();
+        renderer->transform(Mat2D::fromTranslate(-spacing * horzRepeat,
+                                                 (j - upRepeat) * spacing));
+        for (int i = 0; i < horzRepeat * 2 + 1; ++i) {
+          (*scene++)->draw(renderer.get());
+          renderer->transform(Mat2D::fromTranslate(spacing, 0));
+        }
+        renderer->restore();
       }
       renderer->restore();
     }
-    renderer->restore();
   } else {
     float2 p[9];
     for (int i = 0; i < 9; ++i) {
@@ -748,3 +754,5 @@ void riveMainLoop(int width, int height) {
     }
   }
 }
+
+
