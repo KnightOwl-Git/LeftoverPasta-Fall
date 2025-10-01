@@ -3,7 +3,20 @@ add_rules("mode.release", "mode.debug")
 add_requires("glfw")
 set_languages("cxx20", "c17")
 
+rule("assets")
+do
+	set_extensions(".riv")
+	on_build_file(function(target, sourcefile)
+		import("core.project.depend")
+		depend.on_changed(function()
+			-- print(sourcefile)
+			os.cp(sourcefile, target:targetfile() .. ".app/contents/Resources/")
+		end, { files = sourcefile })
+	end)
+end
+
 target("LeftoverPasta")
+
 do
 	set_kind("binary")
 	set_filename("Leftover Pasta")
@@ -13,10 +26,12 @@ do
 	add_files("./src/rive-render/*.mm")
 	add_rules("xcode.application")
 
-	-- add rive files to build- is there a better way to do this?
+	add_rules("assets")
+	add_files("./src/riv/lp_level_editor.riv")
 
-	set_configdir("$(builddir)/$(plat)/$(arch)/$(mode)/riv")
-	add_configfiles("./src/riv/lp_level_editor.riv")
+	-- add rive files to build- is there a better way to do this?
+	-- set_configdir("$(builddir)/$(plat)/$(arch)/$(mode)/Leftover Pasta.app/contents/resources")
+	-- add_configfiles("./src/riv/lp_level_editor.riv")
 
 	--Add rive libraries
 	add_linkdirs("./deps/rive-runtime/renderer/out/release/")
@@ -41,6 +56,10 @@ do
 	add_includedirs("./src/rive-render/")
 	add_includedirs("./src/")
 	add_cxflags("-Isrc/asset_utils.hpp")
+
+	-- after_run(function(target)
+	-- 	os.rm(target:targetfile())
+	-- end)
 
 	if is_plat("macosx") then
 		set_arch("arm64")
