@@ -7,7 +7,7 @@ target("LeftoverPasta")
 do
 	set_kind("binary")
 	set_filename("Leftover Pasta")
-	add_files("./src/path_fiddle.cpp")
+	add_files("./src/*.cpp")
 
 	add_files("./src/rive-render/*.cpp")
 	add_files("./src/rive-render/*.mm")
@@ -39,6 +39,8 @@ do
 	add_includedirs("./deps/rive-runtime/renderer/include/")
 	add_includedirs("./deps/rive-runtime/include/")
 	add_includedirs("./src/rive-render/")
+	add_includedirs("./src/")
+	add_cxflags("-Isrc/asset_utils.hpp")
 
 	if is_plat("macosx") then
 		set_arch("arm64")

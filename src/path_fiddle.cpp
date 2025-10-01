@@ -1,5 +1,3 @@
-
-
 #include "pasta_context.hpp"
 #include "rive/animation/state_machine_instance.hpp"
 #include "rive/artboard.hpp"
@@ -8,6 +6,7 @@
 #include "rive/math/simd.hpp"
 #include "rive/profiler/profiler_macros.h"
 #include "rive/static_scene.hpp"
+#include "asset_utils.hpp"
 
 #include <cstdio>
 #include <filesystem>
@@ -16,6 +15,7 @@
 #include <memory>
 #include <sstream>
 #include <vector>
+
 
 #ifdef _WIN32
 #include <windows.h>
@@ -423,9 +423,8 @@ void riveMainLoop(int width, int height);
 int main(int argc, const char **argv) {
   // Cause stdout and stderr to print immediately without buffering.
 
-  rivName =
-      "/Users/benknight/Documents/LeftoverPasta_Fall2025/LeftoverPasta-Fall/"
-      "src/riv/lp_level_editor.riv"; // load level editor .riv
+  rivName = getAssetPath("lp_level_editor.riv");
+
   setvbuf(stdout, NULL, _IONBF, 0);
   setvbuf(stderr, NULL, _IONBF, 0);
 

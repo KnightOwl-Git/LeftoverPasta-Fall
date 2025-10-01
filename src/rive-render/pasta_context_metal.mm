@@ -8,8 +8,8 @@
 #import <Metal/Metal.h>
 #import <QuartzCore/CAMetalLayer.h>
 
-#include "rive/renderer/gl/render_context_gl_impl.hpp"
-#include "rive/renderer/gl/render_target_gl.hpp"
+/* #include "rive/renderer/gl/render_context_gl_impl.hpp" */
+/* #include "rive/renderer/gl/render_target_gl.hpp" */
 #include "rive/renderer/metal/render_context_metal_impl.h"
 #include "rive/renderer/rive_renderer.hpp"
 using namespace rive;

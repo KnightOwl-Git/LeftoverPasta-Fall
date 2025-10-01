@@ -1,0 +1,16 @@
+[
+{
+  "directory": "/Volumes/Scratch/BenKnight/LeftoverPasta-Fall",
+  "arguments": ["/usr/bin/clang++", "-c", "-Qunused-arguments", "-fvisibility=hidden", "-fvisibility-inlines-hidden", "-O3", "-std=c++20", "-Ideps/rive-runtime/renderer/glad", "-Ideps/rive-runtime/renderer/glad/include", "-Ideps/rive-runtime/renderer/include", "-Ideps/rive-runtime/include", "-Isrc/rive-render", "-DGLFW_INCLUDE_NONE", "-DGL_SILENCE_DEPRECATION", "-framework", "Metal", "-framework", "QuartzCore", "-framework", "IOKIT", "-framework", "AppKit", "-framework", "Foundation", "-framework", "CoreFoundation", "-framework", "Cocoa", "-framework", "IOKit", "-framework", "OpenGL", "-I", "/Users/benknight/.xmake/packages/g/glfw/3.4/3ce34c98157445c898b9d2bf71391976/include", "-DNDEBUG", "-o", "build/.objs/LeftoverPasta/macosx/arm64/release/src/path_fiddle.cpp.o", "src/path_fiddle.cpp"],
+  "file": "src/path_fiddle.cpp"
+},
+{
+  "directory": "/Volumes/Scratch/BenKnight/LeftoverPasta-Fall",
+  "arguments": ["/usr/bin/clang++", "-c", "-Qunused-arguments", "-fvisibility=hidden", "-fvisibility-inlines-hidden", "-O3", "-std=c++20", "-Ideps/rive-runtime/renderer/glad", "-Ideps/rive-runtime/renderer/glad/include", "-Ideps/rive-runtime/renderer/include", "-Ideps/rive-runtime/include", "-Isrc/rive-render", "-DGLFW_INCLUDE_NONE", "-DGL_SILENCE_DEPRECATION", "-framework", "Metal", "-framework", "QuartzCore", "-framework", "IOKIT", "-framework", "AppKit", "-framework", "Foundation", "-framework", "CoreFoundation", "-framework", "Cocoa", "-framework", "IOKit", "-framework", "OpenGL", "-I", "/Users/benknight/.xmake/packages/g/glfw/3.4/3ce34c98157445c898b9d2bf71391976/include", "-DNDEBUG", "-o", "build/.objs/LeftoverPasta/macosx/arm64/release/src/rive-render/pasta_context_vulkan.cpp.o", "src/rive-render/pasta_context_vulkan.cpp"],
+  "file": "src/rive-render/pasta_context_vulkan.cpp"
+},
+{
+  "directory": "/Volumes/Scratch/BenKnight/LeftoverPasta-Fall",
+  "arguments": ["/usr/bin/clang++", "-c", "-pipe", "-DIBOutlet=__attribute__((iboutlet))", "-DIBOutletCollection(ClassName)=__attribute__((iboutletcollection(ClassName)))", "-DIBAction=void)__attribute__((ibaction)", "-Qunused-arguments", "-fvisibility=hidden", "-O3", "-std=c++20", "-Ideps/rive-runtime/renderer/glad", "-Ideps/rive-runtime/renderer/glad/include", "-Ideps/rive-runtime/renderer/include", "-Ideps/rive-runtime/include", "-Isrc/rive-render", "-DGLFW_INCLUDE_NONE", "-DGL_SILENCE_DEPRECATION", "-framework", "Metal", "-framework", "QuartzCore", "-framework", "IOKIT", "-framework", "AppKit", "-framework", "Foundation", "-framework", "CoreFoundation", "-framework", "Cocoa", "-framework", "IOKit", "-framework", "OpenGL", "-I", "/Users/benknight/.xmake/packages/g/glfw/3.4/3ce34c98157445c898b9d2bf71391976/include", "-o", "build/.objs/LeftoverPasta/macosx/arm64/release/src/rive-render/pasta_context_metal.mm.o", "src/rive-render/pasta_context_metal.mm"],
+  "file": "src/rive-render/pasta_context_metal.mm"
+}]
